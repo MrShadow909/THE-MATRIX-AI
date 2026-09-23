@@ -34,3 +34,6 @@ secrets.json
 # Logs
 *.log
 logs/
+
+# Backup files
+*.skeleton

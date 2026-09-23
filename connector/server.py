@@ -1,132 +1,179 @@
 ﻿"""
-NEO Remote Server (Skeleton)
+NEO Remote Server  REST API for the NEO agent.
 
-This is a TEMPLATE for running NEO as a remote service.
-It is NOT a production-ready implementation.
+Run:
+    python -m neo_code.connector.server
+    # or
+    uvicorn neo_code.connector.server:app --host 0.0.0.0 --port 8000
 
-To turn this into a real server, you MUST add:
-    - Authentication (API keys, JWT, OAuth)
-    - Rate limiting
-    - Input validation
-    - Task queue (e.g., Redis, Celery) for async execution
-    - Concurrent request handling (thread/process pool)
-    - Logging & monitoring
-    - Timeouts and cancellation
-    - Sandboxing / containerisation (Docker, gVisor)
-
-Refer to the NEO Connector documentation for the core API.
+Endpoints:
+    GET  /health         health check
+    GET  /status         current config
+    POST /task           execute a coding task
+    POST /task/async     submit task (returns task_id)
+    GET  /task/{id}      poll task status
 """
 
 from __future__ import annotations
 
-# Uncomment when you are ready to build the server:
-# from fastapi import FastAPI, HTTPException
-# from pydantic import BaseModel
-# from neo_code.connector.api import run_task
+import uuid
+import time
+import threading
+from typing import Any, Dict, Optional
+
+from fastapi import FastAPI, HTTPException, BackgroundTasks
+from pydantic import BaseModel, Field
+
+from neo_code.connector.api import run_task
 
 
-# ------------------------------
-# 1. Define request/response models (Pydantic)
-# ------------------------------
+# ============ Models ============
 
-# class TaskRequest(BaseModel):
-#     task: str
-#     workspace: str
-#     provider: str | None = None
-#     model: str | None = None
-#     auto_approve: bool = False
-#     max_iterations: int | None = None
-#     timeout_s: int | None = None
-#
-# class TaskResponse(BaseModel):
-#     id: str
-#     status: str
-#     summary: str
-#     files_changed: list[str]
-#     tests: list[dict]
-#     errors: list[str]
-#     iterations: int
-#     duration_s: float
+class TaskRequest(BaseModel):
+    """Request body for /task."""
+    task: str = Field(..., description="Coding task description")
+    workspace: str = Field(..., description="Project root path")
+    provider: Optional[str] = Field(None, description="LLM provider")
+    model: Optional[str] = Field(None, description="Model name")
+    auto_approve: bool = Field(False, description="Skip confirmations")
+    max_iterations: Optional[int] = Field(None, description="Loop limit")
+    timeout_s: Optional[int] = Field(None, description="Timeout seconds")
 
 
-# ------------------------------
-# 2. Create the FastAPI app
-# ------------------------------
-
-# app = FastAPI(
-#     title="NEO Connector",
-#     description="Remote AI coding engine",
-#     version="1.0.0",
-# )
-
-
-# ------------------------------
-# 3. Endpoints
-# ------------------------------
-
-# @app.post("/task", response_model=TaskResponse)
-# async def run_task_endpoint(request: TaskRequest) -> Dict[str, Any]:
-#     """
-#     Execute a coding task synchronously.
-#     For async execution, use a background task + task_id polling.
-#     """
-#     result = run_task(
-#         task=request.task,
-#         workspace=request.workspace,
-#         provider=request.provider,
-#         model=request.model,
-#         confirm_callback=lambda *_, **__: request.auto_approve,
-#     )
-#     return result
+class TaskResponse(BaseModel):
+    """Response body for /task."""
+    id: str
+    status: str
+    summary: str
+    files_changed: list[str]
+    tests: list[dict]
+    errors: list[str]
+    iterations: int
+    duration_s: float
 
 
-# @app.get("/health")
-# async def health():
-#     return {"status": "ok"}
+class AsyncTaskResponse(BaseModel):
+    """Response for /task/async."""
+    task_id: str
+    status: str
+    message: str
 
 
-# @app.get("/status")
-# async def status():
-#     # Return current provider, model, memory usage, etc.
-#     return {"status": "ready"}
+class HealthResponse(BaseModel):
+    status: str
+    version: str
 
 
-# ------------------------------
-# 4. Run the server (only if executed directly)
-# ------------------------------
+# ============ In-memory task store (use Redis in production) ============
 
-# if __name__ == "__main__":
-#     import uvicorn
-#     uvicorn.run(app, host="0.0.0.0", port=8000)
+_tasks: Dict[str, Dict[str, Any]] = {}
+_lock = threading.Lock()
 
 
-# ------------------------------
-# 5. Security & Deployment Notes
-# ------------------------------
+# ============ App ============
 
-"""
-SECURITY CONSIDERATIONS:
+app = FastAPI(
+    title="NEO Connector",
+    description="Remote AI software engineering engine",
+    version="1.0.0",
+)
 
-1. **Authentication**: Never expose this server without auth.
-   Use API keys, JWT, or mutual TLS.
 
-2. **Workspace isolation**: Each request should run in a dedicated
-   workspace or container to avoid cross-contamination.
+@app.get("/health", response_model=HealthResponse)
+async def health() -> HealthResponse:
+    """Health check endpoint."""
+    return HealthResponse(status="ok", version="1.0.0")
 
-3. **Timeouts**: Set reasonable timeouts (max_iterations, command_timeout)
-   to prevent DoS.
 
-4. **Resource limits**: Limit CPU/memory per task (use process pools
-   or containers).
+@app.get("/status")
+async def status() -> Dict[str, Any]:
+    """Return current server status."""
+    from neo_code.config import Config
+    cfg = Config.load()
+    return {
+        "status": "ready",
+        "provider": cfg.provider,
+        "model": cfg.model,
+        "workspace": cfg.workspace,
+    }
 
-5. **Logging**: Log all requests, tool calls, and errors for audit.
 
-6. **Rate Limiting**: Protect against abuse with sliding window or
-   token bucket.
+@app.post("/task", response_model=TaskResponse)
+async def run_task_endpoint(request: TaskRequest) -> TaskResponse:
+    """
+    Execute a coding task synchronously.
+    WARNING: This blocks until the task completes. Use /task/async for long tasks.
+    """
+    task_id = str(uuid.uuid4())
+    started = time.time()
 
-For production, consider:
-- Running behind a reverse proxy (nginx)
-- Using Docker/Kubernetes for scaling
-- Storing session logs in a centralised location
-- Implementing a task queue (Celery, RQ) for asynchronous execution
-"""
+    try:
+        result = run_task(
+            task=request.task,
+            workspace=request.workspace,
+            provider=request.provider,
+            model=request.model,
+            confirm_callback=(lambda *_, **__: True) if request.auto_approve else None,
+        )
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc))
+
+    return TaskResponse(
+        id=task_id,
+        status=result.get("status", "completed"),
+        summary=result.get("summary", ""),
+        files_changed=result.get("files_changed", []),
+        tests=result.get("tests", []),
+        errors=result.get("errors", []),
+        iterations=result.get("iterations", 0),
+        duration_s=time.time() - started,
+    )
+
+
+@app.post("/task/async", response_model=AsyncTaskResponse)
+async def run_task_async(request: TaskRequest, background: BackgroundTasks) -> AsyncTaskResponse:
+    """Submit a task for asynchronous execution. Poll /task/{id}."""
+    task_id = str(uuid.uuid4())
+
+    with _lock:
+        _tasks[task_id] = {"status": "queued", "result": None, "error": None}
+
+    def _worker():
+        try:
+            result = run_task(
+                task=request.task,
+                workspace=request.workspace,
+                provider=request.provider,
+                model=request.model,
+                confirm_callback=(lambda *_, **__: True) if request.auto_approve else None,
+            )
+            with _lock:
+                _tasks[task_id] = {"status": "completed", "result": result, "error": None}
+        except Exception as exc:
+            with _lock:
+                _tasks[task_id] = {"status": "failed", "result": None, "error": str(exc)}
+
+    background.add_task(_worker)
+
+    return AsyncTaskResponse(
+        task_id=task_id,
+        status="queued",
+        message=f"Task submitted. Poll /task/{task_id}",
+    )
+
+
+@app.get("/task/{task_id}")
+async def get_task_status(task_id: str) -> Dict[str, Any]:
+    """Poll the status of an async task."""
+    with _lock:
+        entry = _tasks.get(task_id)
+    if not entry:
+        raise HTTPException(status_code=404, detail="Task not found")
+    return {"task_id": task_id, **entry}
+
+
+# ============ Run ============
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="127.0.0.1", port=8000, log_level="info")
