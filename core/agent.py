@@ -34,6 +34,7 @@ from neo_code.tools.datetime_util import build_datetime_tools
 from neo_code.tools.delegation import build_delegation_tools
 from neo_code.tools.ssh import build_ssh_tools
 from neo_code.tools.api_client import build_api_tools
+from neo_code.connector.mcp_client import build_mcp_tools
 
 
 # ===== SYSTEM PROMPT WITH STAGE HINTS =====
@@ -118,6 +119,8 @@ def build_tool_registry(workspace_root: str, config: Config) -> ToolRegistry:
     for tool in build_ssh_tools():
         registry.register(tool)
     for tool in build_api_tools():
+        registry.register(tool)
+    for tool in build_mcp_tools():
         registry.register(tool)
     return registry
 
@@ -452,4 +455,5 @@ def _stringify(result: Dict[str, Any]) -> str:
     if len(s) > 6000:
         return s[:6000] + "... (truncated)"
     return s
+
 
