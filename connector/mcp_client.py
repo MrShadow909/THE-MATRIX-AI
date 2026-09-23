@@ -45,6 +45,19 @@ try:
 except ImportError:
     MCP_OK = False
 
+# Remote transports (SSE, Streamable HTTP) - optional
+try:
+    from mcp.client.sse import sse_client
+    SSE_OK = True
+except ImportError:
+    SSE_OK = False
+
+try:
+    from mcp.client.streamable_http import streamablehttp_client
+    HTTP_OK = True
+except ImportError:
+    HTTP_OK = False
+
 
 # ============ Config ============
 
@@ -188,7 +201,7 @@ class MCPClient:
     # -- connect / disconnect ---------------------------------------------
 
     async def connect_all(self) -> str:
-        """Connect to all configured MCP servers."""
+        """Connect to all configured MCP servers (stdio + SSE + Streamable HTTP)."""
         if self._connected and self._sessions:
             return f"Already connected ({len(self._sessions)} servers, {len(self.tools)} tools)"
 
@@ -203,15 +216,45 @@ class MCPClient:
 
         for name, cfg in self.config.get("mcpServers", {}).items():
             try:
-                params = StdioServerParameters(
-                    command=cfg["command"],
-                    args=cfg.get("args", []),
-                    env=cfg.get("env", {}),
-                )
+                url = cfg.get("url")
+                transport = cfg.get("transport", "").lower()
+                headers = cfg.get("headers", {})
 
-                read, write = await self._exit_stack.enter_async_context(
-                    stdio_client(params)
-                )
+                # ---- Remote transports (SSE / Streamable HTTP) ----
+                if url:
+                    if transport == "sse" or (not transport and SSE_OK):
+                        if not SSE_OK:
+                            results.append(f"[!] '{name}': SSE not available")
+                            continue
+                        read, write = await self._exit_stack.enter_async_context(
+                            sse_client(url, headers=headers)
+                        )
+                        label = "sse"
+                    elif transport in ("streamable_http", "http") or (not transport and HTTP_OK):
+                        if not HTTP_OK:
+                            results.append(f"[!] '{name}': Streamable HTTP not available")
+                            continue
+                        read, write, _ = await self._exit_stack.enter_async_context(
+                            streamablehttp_client(url, headers=headers)
+                        )
+                        label = "http"
+                    else:
+                        results.append(f"[!] '{name}': no remote transport available")
+                        continue
+
+                # ---- Local stdio ----
+                else:
+                    params = StdioServerParameters(
+                        command=cfg["command"],
+                        args=cfg.get("args", []),
+                        env=cfg.get("env", {}),
+                    )
+                    read, write = await self._exit_stack.enter_async_context(
+                        stdio_client(params)
+                    )
+                    label = "stdio"
+
+                # ---- Session + tools ----
                 session = await self._exit_stack.enter_async_context(
                     ClientSession(read, write)
                 )
@@ -235,7 +278,7 @@ class MCPClient:
                     }
 
                 results.append(
-                    f"[+] Connected '{name}': {len(tools_result.tools)} tools"
+                    f"[+] Connected '{name}' ({label}): {len(tools_result.tools)} tools"
                 )
             except Exception as e:
                 results.append(f"[!] Failed '{name}': {type(e).__name__}: {e}")
@@ -244,7 +287,6 @@ class MCPClient:
         if not results:
             results.append("No MCP servers configured.")
         return "\n".join(results)
-
     async def disconnect_all(self):
         """Disconnect from all MCP servers."""
         if self._exit_stack:
@@ -482,3 +524,259 @@ def build_mcp_tools() -> list[Tool]:
         MCPConnectTool(),
         MCPCallToolTool(),
     ]
+
+
+# ============ NEO Orchestrator (Sequential, MCP-safe) ============
+
+class NEOOrchestrateTool(Tool):
+    """
+    Orchestrate multiple Neo workers safely.
+
+    MCP sessions do NOT support asyncio.gather() (deadlock).
+    This implementation uses:
+      - Sequential execution (one task at a time)
+      - Per-task timeout (no hangs)
+      - Optional ThreadPoolExecutor for true isolation
+
+    Modes:
+      - 'sequential' (safe, recommended)
+      - 'chain' (output of one feeds next)
+      - 'parallel' (threads, 2-3 tasks max — experimental)
+    """
+    name = "neo_orchestrate"
+    description = (
+        "Run multiple tasks across Neo workers. Modes: 'sequential' (safe), "
+        "'chain' (output feeds next), 'parallel' (2-3 tasks max, experimental). "
+        "Default: sequential."
+    )
+    permission = PermissionLevel.EXECUTE
+    parameters = {
+        "type": "object",
+        "properties": {
+            "tasks": {
+                "type": "array",
+                "items": {"type": "string"},
+                "description": "List of tasks to run.",
+            },
+            "workspace": {
+                "type": "string",
+                "description": "Project root path (all workers use this).",
+            },
+            "mode": {
+                "type": "string",
+                "enum": ["sequential", "chain", "parallel"],
+                "description": "Execution mode (default: sequential).",
+                "default": "sequential",
+            },
+            "provider": {
+                "type": "string",
+                "description": "LLM provider (ollama, anthropic, openai, deepseek).",
+            },
+            "model": {
+                "type": "string",
+                "description": "Model name.",
+            },
+            "auto_approve": {
+                "type": "boolean",
+                "description": "Auto-approve tool calls in workers (be careful!).",
+                "default": True,
+            },
+            "max_iterations": {
+                "type": "integer",
+                "description": "Max iterations per worker (default 3).",
+                "default": 3,
+            },
+            "timeout_s": {
+                "type": "integer",
+                "description": "Per-task timeout in seconds (default 120).",
+                "default": 120,
+            },
+        },
+        "required": ["tasks"],
+    }
+
+    def execute(self, args):
+        tasks = args["tasks"]
+        mode = args.get("mode", "sequential")
+        workspace = args.get("workspace") or str(Path.cwd())
+        provider = args.get("provider")
+        model = args.get("model")
+        auto_approve = args.get("auto_approve", True)
+        max_iter = args.get("max_iterations", 3)
+        timeout_s = args.get("timeout_s", 120)
+
+        if not tasks:
+            return {"error": "No tasks provided."}
+
+        n = len(tasks)
+        import time
+        start = time.time()
+
+        if mode == "sequential":
+            results = self._run_sequential(
+                tasks, workspace, provider, model, auto_approve, max_iter, timeout_s
+            )
+        elif mode == "chain":
+            results = self._run_chain(
+                tasks, workspace, provider, model, auto_approve, max_iter, timeout_s
+            )
+        elif mode == "parallel":
+            results = self._run_parallel_threads(
+                tasks, workspace, provider, model, auto_approve, max_iter, timeout_s
+            )
+        else:
+            return {"error": f"Unknown mode: {mode}"}
+
+        elapsed = time.time() - start
+        succeeded = sum(1 for r in results if r.get("ok"))
+        failed = n - succeeded
+
+        summary_lines = [
+            f"Orchestration complete: {succeeded}/{n} succeeded in {elapsed:.1f}s",
+            f"Mode: {mode}",
+            f"Workers spawned: {n}",
+            "",
+        ]
+        for i, r in enumerate(results, 1):
+            status = "OK" if r.get("ok") else "FAIL"
+            summary_lines.append(f"[{i}] {status} — {r.get('task', '')[:80]}")
+
+        return {
+            "summary": "\n".join(summary_lines),
+            "total": n,
+            "succeeded": succeeded,
+            "failed": failed,
+            "elapsed_s": round(elapsed, 2),
+            "mode": mode,
+            "results": results,
+        }
+
+    # -- helpers ----------------------------------------------------------
+
+    def _get_workers(self) -> List[str]:
+        client = _get_client()
+        return list(client.config.get("mcpServers", {}).keys())
+
+    def _call_one(
+        self, worker: str, task: str,
+        workspace: str, provider, model, auto_approve, max_iter,
+    ) -> Dict[str, Any]:
+        """Call one worker synchronously. Safe (no asyncio.gather)."""
+        client = _get_client()
+        try:
+            # Build args — drop None values (MCP schema rejects them)
+            args: Dict[str, Any] = {
+                "task": task,
+                "workspace": workspace,
+                "auto_approve": auto_approve,
+                "max_iterations": max_iter,
+            }
+            if provider:
+                args["provider"] = provider
+            if model:
+                args["model"] = model
+
+            result = client.call_tool_sync(
+                f"{worker}__neo_run_task",
+                args,
+            )
+            ok = not result.startswith("[!]")
+            return {"ok": ok, "task": task, "worker": worker, "result": result[:2000]}
+        except Exception as e:
+            return {"ok": False, "task": task, "worker": worker, "error": str(e)}
+
+    # -- mode: sequential -------------------------------------------------
+
+    def _run_sequential(
+        self, tasks, workspace, provider, model, auto_approve, max_iter, timeout_s,
+    ) -> List[Dict[str, Any]]:
+        """Run tasks one by one. Safe for MCP."""
+        workers = self._get_workers()
+        if not workers:
+            return [{"ok": False, "task": t, "error": "No MCP servers configured."} for t in tasks]
+
+        results = []
+        for i, task in enumerate(tasks):
+            worker = workers[i % len(workers)]
+            r = self._call_one(worker, task, workspace, provider, model, auto_approve, max_iter)
+            results.append(r)
+        return results
+
+    # -- mode: chain ------------------------------------------------------
+
+    def _run_chain(
+        self, tasks, workspace, provider, model, auto_approve, max_iter, timeout_s,
+    ) -> List[Dict[str, Any]]:
+        """Chain: output of one feeds next."""
+        workers = self._get_workers()
+        if not workers:
+            return [{"ok": False, "task": t, "error": "No MCP servers configured."} for t in tasks]
+
+        results = []
+        previous = ""
+        for i, task in enumerate(tasks):
+            if previous:
+                chained_task = f"{task}\n\n[Previous result]:\n{previous[:1500]}"
+            else:
+                chained_task = task
+
+            worker = workers[i % len(workers)]
+            r = self._call_one(worker, chained_task, workspace, provider, model, auto_approve, max_iter)
+            results.append({**r, "task": task})
+            previous = r.get("result", "")
+
+            if not r.get("ok"):
+                break
+        return results
+
+    # -- mode: parallel (threads, 2-3 max) --------------------------------
+
+    def _run_parallel_threads(
+        self, tasks, workspace, provider, model, auto_approve, max_iter, timeout_s,
+    ) -> List[Dict[str, Any]]:
+        """
+        Parallel via ThreadPoolExecutor. LIMIT: 2-3 tasks max (DeepSeek API).
+        WARNING: MCP sessions may not be thread-safe. Use with caution.
+        """
+        import concurrent.futures
+
+        workers = self._get_workers()
+        if not workers:
+            return [{"ok": False, "task": t, "error": "No MCP servers configured."} for t in tasks]
+
+        # Limit to 3 tasks
+        if len(tasks) > 3:
+            return [{
+                "ok": False,
+                "task": t,
+                "error": f"Parallel mode limited to 3 tasks (got {len(tasks)}). Use sequential.",
+            } for t in tasks]
+
+        assignments = []
+        for i, task in enumerate(tasks):
+            worker = workers[i % len(workers)]
+            assignments.append((worker, task))
+
+        results: List[Dict[str, Any]] = [None] * len(tasks)  # type: ignore
+
+        with concurrent.futures.ThreadPoolExecutor(max_workers=len(tasks)) as executor:
+            futures = {
+                executor.submit(
+                    self._call_one,
+                    worker, task, workspace, provider, model, auto_approve, max_iter,
+                ): i
+                for i, (worker, task) in enumerate(assignments)
+            }
+            for future in concurrent.futures.as_completed(futures, timeout=timeout_s * len(tasks)):
+                idx = futures[future]
+                try:
+                    results[idx] = future.result(timeout=timeout_s)
+                except Exception as e:
+                    results[idx] = {"ok": False, "task": tasks[idx], "error": str(e)}
+
+        return results  # type: ignore
+
+
+def build_orchestrator_tools() -> list[Tool]:
+    """Instantiate orchestrator tools."""
+    return [NEOOrchestrateTool()]

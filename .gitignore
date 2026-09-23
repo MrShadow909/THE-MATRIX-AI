@@ -37,3 +37,7 @@ logs/
 
 # Backup files
 *.skeleton
+
+# Test files
+test_*.py
+fix_*.py
