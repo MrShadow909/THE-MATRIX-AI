@@ -1,0 +1,16 @@
+{
+  "id": "system_admin",
+  "name": "System Administration & OS‑level Operations",
+  "description": "Perform system‑level tasks: check ports, manage processes, inspect system info, organize desktop files.",
+  "instructions": "When performing OS‑level operations, first check permissions. Use `execute_command` with `background: true` for long‑running services. Prefer `check_port` to find available ports before binding. For file organization, use `list_directory` and `move_file` (if available) to structure desktop or workspace files. Always confirm destructive actions (delete, kill) with the user.",
+  "capabilities": ["port checking", "process management", "file organization", "system inspection"],
+  "preferred_tools": ["execute_command", "check_port", "list_directory", "read_file"],
+  "examples": [
+    "To start a server on port 5000, first run check_port 5000, then start with background: true."
+  ],
+  "constraints": [
+    "Never kill processes without user confirmation.",
+    "Do not modify system files outside the workspace without explicit approval."
+  ],
+  "triggers": ["admin", "system", "port", "process", "desktop", "organize", "sudo", "root", "service"]
+}

@@ -1,0 +1,16 @@
+{
+  "id": "server_management",
+  "name": "Web Server Management (Python/Node.js)",
+  "description": "Start, test, and manage web servers (Flask, FastAPI, Express, etc.) in background mode.",
+  "instructions": "When starting a web server, always use `execute_command` with `background: true` so it does not block. Use `check_port` to find a free port if the default is occupied. After starting, test the server with `curl` or a simple HTTP request. If the server fails, inspect logs or stderr. Prefer using `PORT` environment variable to make the app configurable.",
+  "capabilities": ["server startup", "port management", "health checking", "log inspection"],
+  "preferred_tools": ["execute_command", "check_port", "read_file", "edit_file"],
+  "examples": [
+    "Start a Flask app: check_port 5000, then execute_command 'python app.py' with background: true, then curl http://localhost:5000 to verify."
+  ],
+  "constraints": [
+    "Never start a server without verifying the port is free.",
+    "Always confirm the server is responding before reporting success."
+  ],
+  "triggers": ["server", "web", "flask", "fastapi", "express", "node", "port", "background", "daemon"]
+}

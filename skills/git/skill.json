@@ -1,0 +1,11 @@
+{
+  "id": "git",
+  "name": "Git Workflow",
+  "description": "Safe git usage: inspect before mutating, never force-push or reset --hard without explicit user request.",
+  "instructions": "Always check git_status and git_diff before proposing a commit. Summarize what changed and why in the commit message. Never run destructive git commands (reset --hard, push --force, clean -fd) unless the user explicitly asked for that specific operation in this conversation turn.",
+  "capabilities": ["status/diff/log inspection", "safe commit drafting"],
+  "preferred_tools": ["git_status", "git_diff", "git_log", "execute_command"],
+  "examples": ["Review uncommitted changes and draft a commit message before committing."],
+  "constraints": ["Destructive git operations always require explicit user confirmation."],
+  "triggers": ["git", "commit", "branch", "merge", "push", "pull request", "diff"]
+}

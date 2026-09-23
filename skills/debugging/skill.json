@@ -1,0 +1,11 @@
+{
+  "id": "debugging",
+  "name": "Systematic Debugging",
+  "description": "Structured approach for diagnosing and fixing failing code or failing tests.",
+  "instructions": "Follow: reproduce -> isolate -> hypothesize -> fix -> verify. Reproduce the failure first (run the failing command/test). Read the full error/traceback before guessing. Form one specific hypothesis about the root cause, make the smallest change that tests it, then re-run to verify. If it doesn't fix it, revert the guess conceptually and form a new hypothesis rather than piling on more changes. Stop and report if the same fix is attempted twice without success — ask the user for more context instead of looping indefinitely.",
+  "capabilities": ["root-cause analysis", "regression verification"],
+  "preferred_tools": ["execute_command", "run_tests", "read_file", "edit_file", "search_files"],
+  "examples": ["A test fails with an AttributeError -> read the traceback, open the failing file, find the missing attribute, patch it, re-run the test."],
+  "constraints": ["Never claim a bug is fixed without re-running a test or reproduction step that verifies it."],
+  "triggers": ["bug", "error", "exception", "failing", "crash", "traceback", "debug", "fix"]
+}

@@ -1,0 +1,13 @@
+{
+  "id": "python",
+  "name": "Python Engineering",
+  "description": "Conventions and diagnostic approach for Python codebases (Flask/FastAPI/Django/scripts).",
+  "instructions": "Prefer standard library and existing project dependencies over adding new ones. Follow PEP 8. When fixing a bug, reproduce it first (read the traceback, locate the failing line) before editing. After edits, re-run the smallest relevant test or reproduction command to confirm the fix, not just a visual code review. Use edit_file for small precise changes instead of rewriting whole files with write_file.",
+  "capabilities": ["read tracebacks", "static reasoning about Python code", "dependency-aware fixes"],
+  "preferred_tools": ["read_file", "edit_file", "execute_command", "run_tests", "search_files"],
+  "examples": [
+    "Fix a Flask route returning 500 by reading the traceback, then the route handler, then patching the specific bug."
+  ],
+  "constraints": ["Never add a new dependency without checking requirements.txt / pyproject.toml first."],
+  "triggers": ["python", "flask", "fastapi", "django", "pip", "pytest", "traceback", ".py"]
+}

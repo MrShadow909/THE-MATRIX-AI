@@ -1,0 +1,15 @@
+﻿{
+  "id": "self_improvement",
+  "name": "Self-Improvement",
+  "description": "Using self_inspect, self_improve, and propose_improvement to understand, enhance, and grow NEO's own capabilities.",
+  "instructions": "To grow your own capabilities: first use self_inspect to understand your architecture (modules, tools, skills). Identify a concrete, high-value improvement — a new tool, a bug fix, or a prompt refinement. Use propose_improvement to record improvement ideas you notice, and self_improve to apply changes, always providing a clear reason. After applying, verify the change by running the relevant tests. Prefer small, focused improvements over large rewrites. Be proactive: when you notice a gap in your own abilities, record it as an improvement idea even if you don't apply it immediately.",
+  "capabilities": ["inspect own source", "modify own source", "add new tools", "fix own bugs", "propose self-improvements", "learn from errors"],
+  "preferred_tools": ["self_inspect", "self_improve", "propose_improvement", "run_tests"],
+  "examples": [
+    "To add a new capability, self_inspect to see the tool structure, then self_improve to add a new tool module and register it.",
+    "To fix a bug in your own code, self_inspect the failing module, then self_improve with the corrected content.",
+    "When you notice a limitation, propose_improvement to record the idea for later."
+  ],
+  "constraints": ["self_improve only writes .py files inside the neo_code package.", "Always provide a reason for self-improvements.", "Verify changes with run_tests after applying."],
+  "triggers": ["self", "improve", "grow", "upgrade myself", "modify yourself", "self-improve", "self_inspect", "self_improve", "propose_improvement", "agi", "learn from"]
+}

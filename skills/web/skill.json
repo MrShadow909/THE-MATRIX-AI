@@ -1,0 +1,14 @@
+{
+  "id": "web",
+  "name": "Web Research",
+  "description": "Using the web_search and web_fetch tools to research documentation, current facts, and external resources.",
+  "instructions": "When you need information outside the workspace (docs, current events, APIs, libraries), use web_search to find results, then web_fetch to read the full content of the most relevant result. Prefer official documentation and primary sources. If a search returns no results, try rephrasing the query with more specific terms. Always verify facts from at least one fetched page rather than relying on search snippets alone.",
+  "capabilities": ["search the web", "fetch and read web pages", "extract readable text from HTML"],
+  "preferred_tools": ["web_search", "web_fetch"],
+  "examples": [
+    "To learn the latest FastAPI API, web_search 'fastapi documentation', then web_fetch the official docs URL.",
+    "To check if a library exists, web_search '<library> python package', then web_fetch its PyPI page."
+  ],
+  "constraints": ["Never fetch URLs that are not http/https.", "Respect the max_chars limit to avoid huge responses."],
+  "triggers": ["web", "search", "internet", "online", "documentation", "docs", "look up", "research", "url", "website", "api docs"]
+}

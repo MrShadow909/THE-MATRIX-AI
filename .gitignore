@@ -1,0 +1,36 @@
+﻿# Neo data (contains API keys!)
+.neo/
+*.json.bak
+
+# Python
+__pycache__/
+*.py[cod]
+*.so
+build/
+dist/
+*.egg-info/
+
+# Virtual environments
+venv/
+.venv/
+env/
+ENV/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Secrets
+.env
+.env.local
+*.key
+secrets.json
+
+# Logs
+*.log
+logs/

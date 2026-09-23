@@ -1,0 +1,16 @@
+{
+  "id": "delegation",
+  "name": "Task Delegation & Multi‑Agent Coordination",
+  "description": "Split complex tasks into subtasks and coordinate multiple agents or subprocesses.",
+  "instructions": "For large multi‑step tasks, first break them down into independent subtasks. Use the delegation tools to spawn parallel workers when appropriate. Verify each subtask result before combining them. Prefer delegating work that can run concurrently (e.g., file processing, API calls) and collect results asynchronously.",
+  "capabilities": ["parallel execution", "subtask coordination", "result aggregation"],
+  "preferred_tools": ["delegation.spawn", "delegation.collect", "list_directory", "read_file"],
+  "examples": [
+    "To process multiple files, spawn a worker for each file, then collect and merge the outputs."
+  ],
+  "constraints": [
+    "Only delegate work that is independent and does not require shared state.",
+    "Always wait for all subtasks to finish before proceeding."
+  ],
+  "triggers": ["delegation", "parallel", "concurrent", "subtask", "distribute", "spawn", "worker"]
+}
