@@ -661,31 +661,64 @@ class NEOOrchestrateTool(Tool):
         self, worker: str, task: str,
         workspace: str, provider, model, auto_approve, max_iter,
     ) -> Dict[str, Any]:
-        """Call one worker synchronously. Safe (no asyncio.gather)."""
-        client = _get_client()
+        """
+        Call one worker via SUBPROCESS (not nested MCP).
+
+        MCP sessions are single-client. Calling neo__neo_run_task from
+        inside an MCP client that is ALREADY connected to the SAME neo
+        MCP server causes a deadlock. We spawn a fresh Python process
+        via subprocess, which has its own MCP session.
+        """
+        import subprocess
+        import json
+        import os
+
         try:
-            # Build args — drop None values (MCP schema rejects them)
-            args: Dict[str, Any] = {
+            payload = json.dumps({
                 "task": task,
                 "workspace": workspace,
+                "provider": provider,
+                "model": model,
                 "auto_approve": auto_approve,
-                "max_iterations": max_iter,
-            }
-            if provider:
-                args["provider"] = provider
-            if model:
-                args["model"] = model
+            })
 
-            result = client.call_tool_sync(
-                f"{worker}__neo_run_task",
-                args,
+            env = dict(os.environ)
+            env["PYTHONPATH"] = "C:\\Users\\HP\\Desktop\\ENTER THE MATRIX"
+
+            proc = subprocess.run(
+                ["python", "cli.py", "--task-json", "-"],
+                input=payload,
+                capture_output=True,
+                text=True,
+                timeout=180,
+                cwd=workspace,
+                env=env,
             )
-            ok = not result.startswith("[!]")
-            return {"ok": ok, "task": task, "worker": worker, "result": result[:2000]}
+
+            stdout = proc.stdout.strip()
+            if stdout:
+                try:
+                    result = json.loads(stdout.splitlines()[-1])
+                    summary = result.get("summary", "")
+                    return {
+                        "ok": not summary.startswith("Error"),
+                        "task": task,
+                        "worker": worker,
+                        "result": summary[:2000],
+                    }
+                except (json.JSONDecodeError, IndexError):
+                    pass
+
+            return {
+                "ok": False,
+                "task": task,
+                "worker": worker,
+                "error": f"subprocess failed: {proc.stderr[-500:]}",
+            }
+        except subprocess.TimeoutExpired:
+            return {"ok": False, "task": task, "worker": worker, "error": "timeout"}
         except Exception as e:
             return {"ok": False, "task": task, "worker": worker, "error": str(e)}
-
-    # -- mode: sequential -------------------------------------------------
 
     def _run_sequential(
         self, tasks, workspace, provider, model, auto_approve, max_iter, timeout_s,
