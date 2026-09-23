@@ -32,6 +32,7 @@ from neo_code.tools.generalization import build_generalization_tools
 from neo_code.tools.autonomy import build_autonomy_tools
 from neo_code.tools.datetime_util import build_datetime_tools
 from neo_code.tools.delegation import build_delegation_tools
+from neo_code.tools.ssh import build_ssh_tools
 
 
 # ===== SYSTEM PROMPT WITH STAGE HINTS =====
@@ -112,6 +113,8 @@ def build_tool_registry(workspace_root: str, config: Config) -> ToolRegistry:
     for tool in build_delegation_tools(workspace_root):
         registry.register(tool)
     for tool in build_datetime_tools():
+        registry.register(tool)
+    for tool in build_ssh_tools():
         registry.register(tool)
     return registry
 
