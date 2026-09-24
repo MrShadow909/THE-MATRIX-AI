@@ -1,4 +1,39 @@
-﻿2. Choose your provider
+<p align="center">
+  <img src="docs/banner.jpg" alt="Neo Banner" width="800">
+</p>
+
+# 🕶️ Neo — Matrix AI Agent
+
+> Wake up, Neo... The Matrix has you.
+
+An autonomous AI software engineering agent inspired by The Matrix.
+Works locally with **Ollama** or in the cloud with **BYOK** (Bring Your Own Key).
+
+---
+
+## ✨ What it does
+
+Neo is a terminal-based AI agent that:
+
+- **Understands** your codebase before acting
+- **Plans** changes step-by-step
+- **Executes** with 52 built-in tools
+- **Verifies** each change before moving on
+- **Learns** from past tasks (persistent memory)
+- **Orchestrates** multiple tasks across workers
+
+---
+
+## 🚀 Quick Start
+
+### 1. Install
+
+bash
+git clone https://github.com/MrShadow909/THE-MATRIX-AI.git
+cd neo_code
+pip install -r requirements.txt
+
+2. Choose your provider
 Local (Ollama, 100% offline):
 
 bash
@@ -126,3 +161,7 @@ paramiko, keyring (SSH)
 
 ⚖️ License
 Source Available — see LICENSE.
+
+<p align="center">
+  <img src="docs/banner.jpg" alt="Neo Banner" width="800">
+</p>
