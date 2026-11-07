@@ -10,7 +10,7 @@ from .engine import SatoshiEngine
 from .wallet import WatchWallet
 
 UI = Path(__file__).resolve().parent / "static" / "index.html"
-MAX_JSON_BYTES = 16000
+MAX_JSON_BYTES = 36000
 
 
 def make_handler(engine=None, wallet=None, port=8787):
