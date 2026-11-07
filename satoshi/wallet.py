@@ -106,19 +106,24 @@ class WatchWallet:
                 "watch_only": True, "can_sign": False, "balance_btc": None,
                 "balance_verified": False}
 
-    def balance(self):
-        addr = self.address()
+    def balance(self, address: str | None = None):
+        addr = address if address is not None else self.address()
+        if addr is not None:
+            address_network(addr)
+        base = ({"address": addr, "network": address_network(addr) if addr else None,
+                 "watch_only": True, "can_sign": False, "balance_btc": None,
+                 "balance_verified": False})
         if not addr:
-            return {**self.status(), "reason": "Set a PUBLIC Bitcoin receiving address first"}
+            return {**base, "reason": "Set a PUBLIC Bitcoin receiving address first"}
         url = os.getenv("SATOSHI_BITCOIN_RPC_URL", "")
         if not url:
-            return {**self.status(), "reason": "Bitcoin Core RPC not configured; balance unknown"}
+            return {**base, "reason": "Bitcoin Core RPC not configured; balance unknown"}
         parts = urlsplit(url)
         if parts.scheme != "http" or parts.hostname not in ("127.0.0.1", "localhost", "::1") or parts.username or parts.password:
-            return {**self.status(), "reason": "Bitcoin Core RPC must use a local HTTP endpoint"}
+            return {**base, "reason": "Bitcoin Core RPC must use a local HTTP endpoint"}
         user, password = os.getenv("SATOSHI_BITCOIN_RPC_USER"), os.getenv("SATOSHI_BITCOIN_RPC_PASSWORD")
         if not user or not password:
-            return {**self.status(), "reason": "Bitcoin Core RPC credentials not configured"}
+            return {**base, "reason": "Bitcoin Core RPC credentials not configured"}
 
         def rpc(method, params):
             body = json.dumps({"jsonrpc": "1.0", "id": "satoshi-readonly", "method": method, "params": params}).encode()
@@ -135,12 +140,12 @@ class WatchWallet:
             chain = info["chain"]
             expected = {"main": {"main"}, "test": {"test", "testnet4", "signet"}, "regtest": {"regtest"}}
             if chain not in expected[network]:
-                return {**self.status(), "reason": "Bitcoin Core chain differs from receiving address network"}
+                return {**base, "reason": "Bitcoin Core chain differs from receiving address network"}
             scanned = rpc("scantxoutset", ["start", [f"addr({addr})"]])
             if not scanned.get("success"):
-                return {**self.status(), "reason": "UTXO scan not completed"}
-            return {**self.status(), "balance_btc": str(Decimal(str(scanned["total_amount"]))),
+                return {**base, "reason": "UTXO scan not completed"}
+            return {**base, "balance_btc": str(Decimal(str(scanned["total_amount"]))),
                     "balance_verified": True, "chain": chain,
                     "note": "Confirmed unspent outputs on the connected node; pending transactions excluded"}
         except Exception:
-            return {**self.status(), "reason": "Bitcoin Core RPC unavailable or scan failed"}
+            return {**base, "reason": "Bitcoin Core RPC unavailable or scan failed"}

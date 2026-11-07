@@ -8,6 +8,7 @@ from urllib.parse import urlsplit
 from .commands import run_command
 from .engine import SatoshiEngine
 from .wallet import WatchWallet
+from .multichain import MultiChainWallet
 
 UI = Path(__file__).resolve().parent / "static" / "index.html"
 MAX_JSON_BYTES = 36000
@@ -16,6 +17,7 @@ MAX_JSON_BYTES = 36000
 def make_handler(engine=None, wallet=None, port=8787):
     engine = engine or SatoshiEngine()
     wallet = wallet or WatchWallet()
+    multi = MultiChainWallet(bitcoin_wallet=wallet)
     allowed_hosts = {f"localhost:{port}", f"127.0.0.1:{port}", f"[::1]:{port}"}
 
     class Handler(BaseHTTPRequestHandler):
@@ -60,6 +62,8 @@ def make_handler(engine=None, wallet=None, port=8787):
                 self.reply(200, {"engine": engine.status(), "wallet": wallet.status()})
             elif self.path == "/api/wallet":
                 self.reply(200, wallet.status())
+            elif self.path == "/api/wallets":
+                self.reply(200, multi.status())
             else:
                 self.reply(404, {"error": "Not found"})
 
@@ -87,7 +91,7 @@ def make_handler(engine=None, wallet=None, port=8787):
                     reply = engine.chat(payload.get("message"), payload.get("history"))
                     self.reply(200, {"reply": reply, "tools_executed": 0})
                 else:
-                    self.reply(200, run_command(payload.get("command"), wallet, engine))
+                    self.reply(200, run_command(payload.get("command"), wallet, engine, multi))
             except (ValueError, TypeError) as exc:
                 self.reply(400, {"error": str(exc)})
             except Exception:
@@ -103,7 +107,7 @@ def main():
         raise ValueError("SATOSHI_PORT must be 1024–65535")
     server = ThreadingHTTPServer(("127.0.0.1", port), make_handler(port=port))
     print(f"SATOSHI AI localhost interface: http://127.0.0.1:{port}")
-    print("Chat uses Neo providers without autonomous tools. Wallet is watch-only.")
+    print("Chat uses Neo providers without autonomous tools. Multi-chain CLI is watch-only.")
     try:
         server.serve_forever()
     except KeyboardInterrupt:
