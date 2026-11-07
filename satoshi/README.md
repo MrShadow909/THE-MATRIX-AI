@@ -1,8 +1,64 @@
-# SATOSHI AI — Browser Wallet Connectors + Multi-Chain Wallet CLI v0.3
+# SATOSHI AI v0.4 — Coding Agent + Multi-Provider + Multi-Chain Wallet
 
-A localhost SATOSHI AI chat + CLI demo built against THE-MATRIX-AI's **provider interface only**. The LLM has **zero** executable tools or wallet access. Wallet actions are handled independently by an explicit command allowlist.
+**Local developer MVP**: 15 workspace-scoped coding/research tools, seven AI providers (Ollama, OpenAI, Anthropic, DeepSeek, Gemini, Qwen, Mistral), Git (local), read-only public web fetch/scraping, and isolated watch-only multi-chain wallets. This is an overlay for the original `THE-MATRIX-AI` checkout; it is **not** a standalone executable.
 
-**This is not a custodian, exchange, trading bot, signing wallet, investment adviser, or production SaaS. No transaction broadcast or trading is implemented.** Use only PUBLIC addresses. Never enter a recovery phrase, private key, mnemonic, password or API secret into SATOSHI chat or CLI.
+## Start
+
+1. Clone the [original engine](https://github.com/MrShadow909/THE-MATRIX-AI) and copy this release's `satoshi/` package into that repository root (beside `config.py` and `providers/`).
+2. Install its requirements (at minimum `openai`, `anthropic`, `requests`): `python -m pip install -r requirements.txt`.
+3. Set an API key in your **Python process environment** or use Ollama locally. No keys belong in browser fields, chat messages, CLI commands, source files or screenshots.
+4. Start: `python -m satoshi.server` and open `http://127.0.0.1:8787`.
+5. Use the **MULTI_PROVIDER** selector to pick a provider/model. This selection lasts for the running server process; changing it cancels all pending coding approvals and resets coding sessions.
+
+### Provider configuration
+
+| Provider | Environment variable | Default model | Endpoint |
+|---|---|---|---|
+| Ollama | no key; local service at `SATOSHI_OLLAMA_HOST` (optional) | `llama3.2` | `http://127.0.0.1:11434` |
+| OpenAI | `OPENAI_API_KEY` | `gpt-4o-mini` | `https://api.openai.com/v1` |
+| Anthropic | `ANTHROPIC_API_KEY` | `claude-haiku-4-5` | Anthropic native API via original Neo adapter |
+| DeepSeek | `DEEPSEEK_API_KEY` | `deepseek-chat` | `https://api.deepseek.com` |
+| Google Gemini | `GEMINI_API_KEY` (or `GOOGLE_API_KEY`) | `gemini-2.5-flash` | `https://generativelanguage.googleapis.com/v1beta/openai/` |
+| Alibaba Qwen | `DASHSCOPE_API_KEY` (or `QWEN_API_KEY`) | `qwen-plus` | `https://dashscope-intl.aliyuncs.com/compatible-mode/v1` |
+| Mistral | `MISTRAL_API_KEY` | `mistral-small-latest` | `https://api.mistral.ai/v1` |
+
+Qwen now supports workspace-specific domains. Set `SATOSHI_QWEN_BASE_URL` to your official `https://<workspace>.<region>.maas.aliyuncs.com/compatible-mode/v1` endpoint if required. No arbitrary host is accepted. Example for a local Windows PowerShell terminal:
+
+```powershell
+$env:SATOSHI_PROVIDER = "gemini"
+$env:GEMINI_API_KEY = "<your key entered locally>"
+python -m satoshi.server
+```
+
+Never commit local credentials. The UI's `configured`/`connected` status checks key presence (or local Ollama reachability), **not actual network access or API billing status**. Provider names/models must be valid for the user's account; providers may change available model IDs.
+
+### Coding & web tools (15 total)
+
+Read-only: `list_directory`, `read_file`, `search_files`, `git_status`, `git_diff`, `git_log`, `web_fetch`, `web_scrape`, `github_repo` (public read-only GitHub metadata). Require **one-time, per-call, exact operator approval**: `write_file`, `edit_file`, `delete_file`, `git_add`, `git_commit`, `run_tests`. Some test suites can execute code and must be reviewed before approval. No arbitrary shell, SSH, browser login, site modification, Git push, wallet keys or transfers are exposed to the AI coding agent.
+
+Coding operates only in `SATOSHI_WORKSPACE` (default `~/SATOSHI_Workspace`). Web tools retrieve public HTTPS pages without authentication or JavaScript, validate DNS and block local/internal IP targets. Research tool output is untrusted text, not instructions. `run_tests` accepts only `unittest`, `pytest` or `node` suites. `git_commit` is local only. This is developer tooling, not a fully isolated container sandbox: **do not run untrusted repository tests on your personal machine**.
+
+### API (localhost only)
+
+- `GET /api/providers`: provider IDs and default models, **no keys**.
+- `POST /api/provider`: JSON `{ "provider": "gemini", "model": "gemini-2.5-flash" }` updates current process; rejects additional fields, including keys.
+- `GET /api/coder/tools`: coding tool names, safety category and workspace.
+- `POST /api/coder/task`: new coding task (may return approval request).
+- `POST /api/coder/approve`: requires matching session ID, single-use approval token and explicit boolean. Denial changes nothing.
+- Existing watch-only wallet, MetaMask, Phantom and chat endpoints are preserved.
+
+### Validation
+
+```bash
+python -m unittest discover -s tests -p 'test_*.py' -v
+node tests/test_wallet_connectors.cjs
+```
+
+These tests are offline/mock-based. **Production API calls, real extensions, mainnet reliability, billing and software licensing have not been verified.** Before selling or trusting real money, complete an independent security review and legal/licensing review. No financial transaction signing, broadcasting or trading is implemented. All wallet addresses are public and watch-only.
+
+---
+
+## Previous multi-chain and wallet connector documentation
 
 ## Supported chains
 
@@ -29,7 +85,7 @@ The SATOSHI dashboard now offers explicit **Connect / Refresh / Save to CLI / Di
 
 **Save to CLI** is a separate, deliberate action that writes only the selected **PUBLIC** address to SATOSHI's local watchlist with a user-chosen alias. No automatic persistence on connection. Watchlist entries are not cryptographic proof of ownership. MetaMask Disconnect clears SATOSHI's browser state; to revoke the dapp's provider permission, also disconnect SATOSHI under MetaMask's connected-site permissions. Phantom Disconnect calls the provider's `disconnect()`.
 
-The connectors **never call** `eth_sendTransaction`, `personal_sign`, `signTransaction`, `signAndSendTransaction`, `wallet_switchEthereumChain`, token approvals, swaps or trading methods. No wallet-generated secrets pass to the AI/chat. The AI agent retains zero wallet tools and zero autonomous execution capability.
+The connectors **never call** `eth_sendTransaction`, `personal_sign`, `signTransaction`, `signAndSendTransaction`, `wallet_switchEthereumChain`, token approvals, swaps or trading methods. No wallet-generated secrets pass to the AI/chat. The AI retains zero wallet tools. SATOSHI CODER has separate, explicitly approved workspace writes and tests.
 
 **Browser requirements:** open `http://127.0.0.1:8787` with a compatible extension on desktop, or in Phantom's in-app browser for mobile Solana use. Wallet providers generally **do not inject** into `file://` previews, non-secure remote HTTP pages or cross-origin iframes. This MVP uses direct browser injection; it does **not** yet include the MetaMask Connect SDK's QR/deep-link mobile connection flow. Before production, perform real extension and mobile-wallet QA, including switching accounts and chains, error handling, authentication/CSRF review, domain verification where applicable, a wallet-focused security audit and testing with small public testnet-only samples. Do not use real funds during initial testing.
 
@@ -120,7 +176,7 @@ Bitcoin Core variables: `SATOSHI_BITCOIN_RPC_URL` (localhost HTTP), `SATOSHI_BIT
 - No seed phrase or private key storage; only public addresses. EVM mixed-case addresses require valid EIP-55 checksum; Solana base58 must decode to 32 bytes; Bitcoin legacy and segwit checksums are verified.
 - RPC replies are network-checked and unverified results are never presented as balances.
 - Local server binds to 127.0.0.1; strict Host/Origin validation. Never expose the demo to the internet or use on an untrusted shared machine.
-- Existing Neo autonomous tools, shell/SSH, remote MCP, auto approvals, file edits remain completely disabled.
+- Neo autonomous tools, shell/SSH, remote MCP and auto approvals remain disabled. SATOSHI CODER instead provides explicitly approved workspace file edits.
 - Payment drafts are in-memory data records; no fee simulation, balance validation, signed transaction creation or broadcasting. Actual sending would require separately designed and audited adapters, human approval, secure signing, chain-specific fees and robust recovery.
 - **Before sale:** independent security review, live-chain tests on safe public addresses, privacy/terms, license compliance, Windows packaging, code signing, audited wallet interactions and appropriate local legal review.
 

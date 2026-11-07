@@ -42,17 +42,50 @@ footer{display:flex;justify-content:space-between;gap:16px;border:1px solid #164
 .center-panel{min-height:650px}
 #voiceCanvas{width:min(100%,340px)}
 @media(max-width:800px){.center-panel{min-height:580px}}
+
+.provider-bar,.coder-bar{width:100%;max-width:560px;border:1px solid #164e63;background:rgba(2,6,23,.7);padding:12px;margin-top:9px}
+.provider-row{display:flex;gap:7px;align-items:center;flex-wrap:wrap}
+.provider-row label{font-size:11px;color:#67e8f9}
+.provider-row select,.provider-row input{background:#0f172a;color:#a5f3fc;border:1px solid #164e63;padding:10px;font:inherit;min-width:0}
+.provider-row select{flex:1 1 120px}.provider-row input{flex:2 1 155px}
+.provider-note{margin:7px 0 0;font-size:10px;color:#7dd3fc;line-height:1.5}
+.coder-task{width:100%;min-height:64px;resize:vertical;background:#0f172a;color:#a5f3fc;border:1px solid #164e63;padding:10px;font:inherit}
+.coder-output{white-space:pre-wrap;overflow:auto;max-height:180px;min-height:35px;color:#a5f3fc;font-size:11px;margin-top:8px}
+.approval{border:1px solid #f59e0b;background:#251607;padding:10px;margin-top:8px}
+.approval pre{white-space:pre-wrap;max-height:175px;overflow:auto;color:#fbbf24;font-size:11px;word-break:break-word}
+.wallet-connect{border:1px solid #164e63;background:#020617;padding:12px;overflow-wrap:anywhere}
+.wallet-connect p{font-size:10px;color:#67e8f9;margin:5px 0}
+.wallet-connect .btn{padding:8px 7px;font-size:10px;margin:2px}
+.wallet-connect .wallet-provider{border-top:1px solid #164e63;padding:7px 0}
+@media(max-width:520px){.provider-row button{width:100%}}
 </style>
 </head>
 <body><div class="shell">
-<header><div><div class="header-title">SATOSHI_AI_v0.1.0</div><p class="subtitle">STATUS: NEO_PROVIDER_BRIDGE // LOCAL_FIRST</p></div><div class="status"><span class="dot"></span> CHECKING_BACKEND</div></header>
+<header><div><div class="header-title">SATOSHI_AI_v0.4.0</div><p class="subtitle">STATUS: MULTI_PROVIDER_CODING_ENGINE // LOCAL_FIRST</p></div><div class="status"><span class="dot"></span> CHECKING_BACKEND</div></header>
 <main>
-<section class="panel logs-panel"><div><div class="section-label">[ AGENT_ORCHESTRATION_LOGS ]</div><div id="logs" class="logs" aria-live="polite"><p class="bright">[BOOT] SATOSHI AI local interface loaded.</p><p>[SECURITY] Autonomous Neo tools disabled.</p><p>[WALLET] Awaiting public BTC address (watch-only).</p><p class="blinker">[&gt;&gt;] Checking provider...</p></div></div><div class="thread-count">NEO TOOLS: DISABLED // WALLET: WATCH-ONLY</div></section>
+<section class="panel logs-panel"><div><div class="section-label">[ AGENT_ORCHESTRATION_LOGS ]</div><div id="logs" class="logs" aria-live="polite"><p class="bright">[BOOT] SATOSHI AI local interface loaded.</p><p>[SECURITY] Coding actions require approval. No wallet keys exposed.</p><p>[WALLET] Awaiting public BTC address (watch-only).</p><p class="blinker">[&gt;&gt;] Checking provider...</p></div></div><div class="thread-count">CODER: 15 SCOPED TOOLS // WALLET: WATCH-ONLY</div></section>
 <section class="panel center-panel"><div class="corner-label">[ NEURAL_VOICE_FIELD // SWARM_FACE ]</div><canvas id="voiceCanvas" width="500" height="500" aria-label="Animated voice-reactive particle sphere" role="img"></canvas><div class="canvas-subtext" id="voiceState">AUDIO_INPUT: IDLE · LOCAL VISUALIZER</div>
 <div class="voice-actions"><button class="btn" id="voiceToggle" type="button">SIMULATE SIGNAL</button><button class="btn" id="micToggle" type="button">ENABLE MICROPHONE</button></div>
-<div class="chat" aria-label="Satoshi AI chat"><div class="section-label">[ SATOSHI_CHAT // NEO_PROVIDER ]</div><div class="chat-thread" id="chatThread" role="log" aria-live="polite"><p class="ai-msg">SATOSHI ready. Ask me something. The Neo coding tools are disabled.</p></div><div class="chat-send"><input id="chatInput" maxlength="3000" placeholder="Message SATOSHI AI..." aria-label="Chat message"/><button class="btn" id="chatSend" type="button">SEND</button></div></div></section>
-<aside class="right-panel"><div class="wallet"><div class="section-label">[ ON_CHAIN_WALLET ]</div><p class="address">BTC ADDRESS: <b id="walletAddress">NOT CONFIGURED</b></p><div class="balance-row"><span class="balance" id="walletBalance">— BTC</span><span class="mainnet" id="walletNetwork">UNVERIFIED</span></div><p class="demo">WATCH-ONLY · NO SIGNING · NO FAKE BALANCES</p></div><div class="panel cli"><div><div class="section-label">[ DIRECT_CLI_OVERRIDE ]</div><textarea id="commandInput" placeholder="help&#10;wallet status&#10;wallet address &lt;PUBLIC_BTC_ADDRESS&gt;&#10;wallet balance"></textarea></div><button class="btn execute" id="execute" type="button">EXECUTE_COMMAND</button></div></aside>
-</main><footer><span>HOST: 127.0.0.1 // ENGINE: NEO PROVIDERS</span><span>SATOSHI AI · NEO MATRIX ENGINE · WATCH-ONLY BTC</span></footer>
+<div class="provider-bar" aria-label="AI provider selection">
+  <div class="section-label">[ MULTI_PROVIDER // BYOK ]</div>
+  <div class="provider-row"><label for="providerSelect">AI:</label><select id="providerSelect" aria-label="Model provider"><option value="ollama">Ollama</option></select><input id="providerModel" aria-label="Provider model" placeholder="Model name" maxlength="100" /><button class="btn" id="providerApply" type="button">APPLY</button></div>
+  <p class="provider-note" id="providerNote">API keys are configured on your Python server, never in browser chat. Switching resets coding sessions.</p>
+</div>
+<div class="chat" aria-label="Satoshi AI chat"><div class="section-label">[ SATOSHI_CHAT // MULTI_PROVIDER ]</div><div class="chat-thread" id="chatThread" role="log" aria-live="polite"><p class="ai-msg">SATOSHI ready. Choose a model, chat or run a coding task below.</p></div><div class="chat-send"><input id="chatInput" maxlength="3000" placeholder="Message SATOSHI AI..." aria-label="Chat message"/><button class="btn" id="chatSend" type="button">SEND</button></div></div>
+<div class="coder-bar" aria-label="Coding agent">
+  <div class="section-label">[ SATOSHI_CODER // FILES · GIT · WEB_FETCH · SCRAPE ]</div>
+  <textarea class="coder-task" id="coderTask" maxlength="3000" placeholder="Example: inspect the workspace; create a Python function to parse JSON. Website research: fetch https://example.org and summarize headings..."></textarea>
+  <div class="provider-row"><button class="btn" type="button" id="coderRun">RUN CODER</button><span id="coderToolCount" style="font-size:10px;color:#67e8f9">15 scoped tools · approval for changes</span></div>
+  <pre id="coderOutput" class="coder-output" aria-live="polite">Read-only tools can run automatically. Every file write, Git commit or test run requires your approval.</pre>
+  <div id="approvalBox" class="approval" hidden><strong>REVIEW EXACT ACTION</strong><pre id="approvalDetails"></pre><button class="btn" id="approveYes" type="button">APPROVE THIS ACTION</button> <button class="btn" id="approveNo" type="button">DENY</button></div>
+</div></section>
+<aside class="right-panel"><div class="wallet"><div class="section-label">[ ON_CHAIN_WALLET ]</div><p class="address">BTC ADDRESS: <b id="walletAddress">NOT CONFIGURED</b></p><div class="balance-row"><span class="balance" id="walletBalance">— BTC</span><span class="mainnet" id="walletNetwork">UNVERIFIED</span></div><p class="demo">WATCH-ONLY · NO SIGNING · NO FAKE BALANCES</p></div><div class="wallet-connect"><div class="section-label">[ CONNECT EXTERNAL WALLETS · READ ONLY ]</div>
+<div class="wallet-provider"><strong>MetaMask (EVM)</strong><p id="metaStatus">NOT CONNECTED</p><p id="metaAddress">—</p><p id="metaNetwork">NO NETWORK</p><p id="metaBalance">—</p>
+<button class="btn" id="connectMeta" type="button">CONNECT</button><button class="btn" id="refreshMeta" type="button">REFRESH</button><button class="btn" id="saveMeta" type="button">SAVE TO CLI</button><button class="btn" id="disconnectMeta" type="button">DISCONNECT</button></div>
+<div class="wallet-provider"><strong>Phantom (Solana)</strong><p id="phantomStatus">NOT CONNECTED</p><p id="phantomAddress">—</p><p id="phantomBalance">— SOL</p>
+<button class="btn" id="connectPhantom" type="button">CONNECT</button><button class="btn" id="refreshPhantom" type="button">REFRESH</button><button class="btn" id="savePhantom" type="button">SAVE TO CLI</button><button class="btn" id="disconnectPhantom" type="button">DISCONNECT</button></div>
+<p class="provider-note">Public addresses only. No signing or transfers. No seed phrases.</p></div><div class="panel cli"><div><div class="section-label">[ DIRECT_CLI_OVERRIDE ]</div><textarea id="commandInput" placeholder="help&#10;wallet status&#10;wallet address &lt;PUBLIC_BTC_ADDRESS&gt;&#10;wallet balance"></textarea></div><button class="btn execute" id="execute" type="button">EXECUTE_COMMAND</button></div></aside>
+</main><footer><span>HOST: 127.0.0.1 // ENGINE: MULTI_PROVIDER</span><span>SATOSHI AI · CODER + MULTICHAIN WATCH-ONLY WALLET</span></footer>
 </div><script>
 (()=>{
 'use strict';
@@ -62,12 +95,14 @@ const chatThread=$('chatThread'),chatInput=$('chatInput'),chatSend=$('chatSend')
 const walletAddress=$('walletAddress'),walletBalance=$('walletBalance'),walletNetwork=$('walletNetwork');
 let simulating=false,t=0,micStream=null,audioCtx=null,analyser=null,micData=null,micAmplitude=0;
 const history=[];
+let coderSession=null,coderPending=null;
+const coderOutput=$('coderOutput'),coderRun=$('coderRun'),approvalBox=$('approvalBox');
 const nodes=Array.from({length:205},(_,i)=>{const y=1-2*(i+.5)/205,r=Math.sqrt(1-y*y),theta=i*2.399963229728653;return{x:Math.cos(theta)*r,y,z:Math.sin(theta)*r};});
 function log(msg,css){const p=document.createElement('p');p.textContent='['+new Date().toLocaleTimeString('en-GB',{hour12:false})+'] '+msg;p.className=css||'bright';logs.append(p);logs.scrollTop=logs.scrollHeight;}
 function chatLine(message,who){const p=document.createElement('p');p.className=who==='user'?'user-msg':'ai-msg';p.textContent=message;chatThread.append(p);chatThread.scrollTop=chatThread.scrollHeight;}
 async function api(url,payload){const response=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});const data=await response.json();if(!response.ok)throw Error(data.error||'Backend unavailable');return data;}
 function setWallet(data){const wallet=data.wallet||data;walletAddress.textContent=wallet.address||'NOT CONFIGURED';walletNetwork.textContent=wallet.network?wallet.network.toUpperCase():'UNVERIFIED';walletBalance.textContent=wallet.balance_verified?wallet.balance_btc+' BTC':'— BTC';}
-async function status(){try{const resp=await fetch('/api/status',{cache:'no-store'});if(!resp.ok)throw Error('not reachable');const data=await resp.json();setWallet(data);const ok=data.engine.connected;$('voiceState').textContent='VOICE: IDLE // PROVIDER '+data.engine.provider.toUpperCase();document.querySelector('.status').lastChild.textContent=ok?' MODEL_READY':' PROVIDER_OFFLINE';document.querySelector('.status').style.color=ok?'#34d399':'#fbbf24';log('[ENGINE] '+data.engine.provider+'/'+data.engine.model+' — '+(ok?'ready':'not connected'),ok?'ok':'warn');}catch(e){document.querySelector('.status').lastChild.textContent=' SERVER_OFFLINE';document.querySelector('.status').style.color='#fbbf24';log('[ENGINE] Start local SATOSHI server to enable chat and wallet.','warn');}}
+async function status(){try{const resp=await fetch('/api/status',{cache:'no-store'});if(!resp.ok)throw Error('not reachable');const data=await resp.json();setWallet(data);const ok=data.engine.configured;$('voiceState').textContent='VOICE: IDLE // PROVIDER '+data.engine.provider.toUpperCase();document.querySelector('.status').lastChild.textContent=ok?' PROVIDER_CONFIGURED':' PROVIDER_OFFLINE';document.querySelector('.status').style.color=ok?'#34d399':'#fbbf24';log('[ENGINE] '+data.engine.provider+'/'+data.engine.model+' — '+(ok?'ready':'not connected'),ok?'ok':'warn');}catch(e){document.querySelector('.status').lastChild.textContent=' SERVER_OFFLINE';document.querySelector('.status').style.color='#fbbf24';log('[ENGINE] Start local SATOSHI server to enable chat and wallet.','warn');}}
 function render(){t+=.013;const w=c.width,h=c.height,cx=w/2,cy=h/2;ctx.clearRect(0,0,w,h);
 if(analyser){analyser.getByteTimeDomainData(micData);let sum=0;for(const sample of micData){const v=(sample-128)/128;sum+=v*v;}micAmplitude=Math.min(1,Math.sqrt(sum/micData.length)*5);}
 const amp=analyser?micAmplitude:simulating?.55+.45*Math.abs(Math.sin(t*5)*Math.cos(t*2.8)):0,radius=146+amp*15;
@@ -82,8 +117,33 @@ toggle.addEventListener('click',()=>{simulating=!simulating;toggle.textContent=s
 micToggle.addEventListener('click',async()=>{if(micStream){micStream.getTracks().forEach(track=>track.stop());micStream=null;analyser=null;micData=null;await audioCtx?.close();audioCtx=null;micToggle.textContent='ENABLE MICROPHONE';log('[MIC] Microphone stopped');return;}
 try{if(!navigator.mediaDevices?.getUserMedia)throw Error('Microphone requires localhost/HTTPS and browser permission');micStream=await navigator.mediaDevices.getUserMedia({audio:true});audioCtx=new (window.AudioContext||window.webkitAudioContext)();analyser=audioCtx.createAnalyser();analyser.fftSize=512;audioCtx.createMediaStreamSource(micStream).connect(analyser);micData=new Uint8Array(analyser.fftSize);simulating=false;toggle.textContent='SIMULATE SIGNAL';micToggle.textContent='STOP MICROPHONE';voiceState.textContent='MICROPHONE: LIVE AUDIO LEVELS · LOCAL';log('[MIC] Audio visualizer active; no speech is sent to SATOSHI.','ok');}catch(e){log('[MIC] '+e.message,'warn');}});
 execute.addEventListener('click',async()=>{const command=input.value.trim();if(!command){log('[CLI] Enter a command','warn');return;}execute.disabled=true;try{const res=await api('/api/command',{command});log('[CLI] '+(res.ok?JSON.stringify(res.output):res.error),res.ok?'ok':'warn');if(res.ok&&command.startsWith('wallet')){const w=await(await fetch('/api/wallet')).json();setWallet(command==='wallet balance'?res.output:w);}if(res.ok)input.value='';}catch(e){log('[CLI] '+e.message,'warn')}finally{execute.disabled=false;}});
-async function sendChat(){const msg=chatInput.value.trim();if(!msg)return;chatLine(msg,'user');chatInput.value='';chatSend.disabled=true;try{const result=await api('/api/chat',{message:msg,history:history.slice(-8)});chatLine(result.reply||'(empty answer)','ai');history.push({role:'user',content:msg},{role:'assistant',content:result.reply});if(history.length>12)history.splice(0,history.length-12);log('[CHAT] Response from Neo provider','ok');}catch(e){chatLine('ERROR: '+e.message,'ai');log('[CHAT] '+e.message,'warn')}finally{chatSend.disabled=false;}}
+async function sendChat(){const msg=chatInput.value.trim();if(!msg)return;chatLine(msg,'user');chatInput.value='';chatSend.disabled=true;try{const result=await api('/api/chat',{message:msg,history:history.slice(-8)});chatLine(result.reply||'(empty answer)','ai');history.push({role:'user',content:msg},{role:'assistant',content:result.reply});if(history.length>12)history.splice(0,history.length-12);log('[CHAT] Provider response received','ok');}catch(e){chatLine('ERROR: '+e.message,'ai');log('[CHAT] '+e.message,'warn')}finally{chatSend.disabled=false;}}
 chatSend.addEventListener('click',sendChat);chatInput.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();sendChat();}});
-render();status();
+async function loadProviders(){try{
+const resp=await fetch('/api/providers',{cache:'no-store'});if(!resp.ok)throw Error('Not available');const data=await resp.json();
+const select=$('providerSelect');select.textContent='';for(const item of data.providers){const opt=document.createElement('option');opt.value=item.id;opt.textContent=item.id.toUpperCase();opt.dataset.model=item.default_model;select.append(opt);}
+select.value=data.selected.provider;$('providerModel').value=data.selected.model;select.addEventListener('change',()=>{$('providerModel').value=select.selectedOptions[0].dataset.model;});
+$('providerNote').textContent='Configured provider: '+data.selected.provider+' · '+(data.selected.configured?'API key/local service detected':'Not yet configured')+'. Keys stay on local server.';
+}catch(e){log('[PROVIDER] '+e.message,'warn');}}
+$('providerApply').addEventListener('click',async()=>{const btn=$('providerApply');btn.disabled=true;try{const info=await api('/api/provider',{provider:$('providerSelect').value,model:$('providerModel').value.trim()});
+history.length=0;coderSession=null;coderPending=null;approvalBox.hidden=true;
+$('providerNote').textContent='Selected: '+info.selected.provider+'/'+info.selected.model+' · '+(info.status.configured?'Configured (not live-verified)':'Missing credentials or local model');
+log('[PROVIDER] Switched to '+info.selected.provider+'/'+info.selected.model,'ok');await status();
+}catch(e){log('[PROVIDER] '+e.message,'warn')}finally{btn.disabled=false;}});
+function showCoderResult(data){coderOutput.textContent=data.reply||data.state||'No answer';coderSession=data.session_id||coderSession;
+coderPending=data.pending||null;approvalBox.hidden=!coderPending;
+if(coderPending){$('approvalDetails').textContent=coderPending.name+' ('+coderPending.safety+')\n'+coderPending.arguments_preview;
+if(coderPending.truncated){coderOutput.textContent='Cannot approve: arguments preview incomplete';$('approveYes').disabled=true;}else $('approveYes').disabled=false;
+}}
+coderRun.addEventListener('click',async()=>{const message=$('coderTask').value.trim();if(!message)return;coderRun.disabled=true;
+try{const d=await api('/api/coder/task',{message,session_id:coderSession});showCoderResult(d);if(d.state!=='approval_required')$('coderTask').value='';}
+catch(e){coderOutput.textContent='ERROR: '+e.message;}finally{coderRun.disabled=false;}});
+async function coderDecide(approved){if(!coderPending)return;const pending=coderPending;coderPending=null;approvalBox.hidden=true;
+try{const d=await api('/api/coder/approve',{session_id:coderSession,token:pending.token,approved});showCoderResult(d);}
+catch(e){coderOutput.textContent='ERROR: '+e.message;}}
+$('approveYes').addEventListener('click',()=>coderDecide(true));$('approveNo').addEventListener('click',()=>coderDecide(false));
+async function loadCoder(){try{const r=await fetch('/api/coder/tools');const d=await r.json();$('coderToolCount').textContent=d.tool_count+' tools · workspace: '+d.workspace;}
+catch(e){log('[CODER] Unavailable','warn');}}
+render();status();loadProviders();loadCoder();
 })();
-</script></body></html>
+</script><script src="/wallet-connectors.js" defer></script></body></html>

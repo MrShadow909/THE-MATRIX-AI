@@ -2,6 +2,7 @@
 from __future__ import annotations
 import json
 import os
+import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import urlsplit
@@ -9,6 +10,7 @@ from .commands import run_command
 from .engine import SatoshiEngine
 from .wallet import WatchWallet
 from .multichain import MultiChainWallet
+from .coder import SatoshiCoder
 
 STATIC = Path(__file__).resolve().parent / "static"
 UI = STATIC / "index.html"
@@ -16,10 +18,12 @@ WALLET_CONNECTORS_JS = STATIC / "wallet-connectors.js"
 MAX_JSON_BYTES = 36000
 
 
-def make_handler(engine=None, wallet=None, port=8787):
+def make_handler(engine=None, wallet=None, port=8787, coder=None):
     engine = engine or SatoshiEngine()
     wallet = wallet or WatchWallet()
     multi = MultiChainWallet(bitcoin_wallet=wallet)
+    coder = coder or SatoshiCoder(engine=engine)
+    provider_lock = threading.RLock()
     allowed_hosts = {f"localhost:{port}", f"127.0.0.1:{port}", f"[::1]:{port}"}
 
     class Handler(BaseHTTPRequestHandler):
@@ -76,13 +80,17 @@ def make_handler(engine=None, wallet=None, port=8787):
                 self.reply(200, wallet.status())
             elif self.path == "/api/wallets":
                 self.reply(200, multi.status())
+            elif self.path == "/api/providers":
+                self.reply(200, {**engine.provider_options(), "selected": engine.status()})
+            elif self.path == "/api/coder/tools":
+                self.reply(200, coder.status())
             else:
                 self.reply(404, {"error": "Not found"})
 
         def do_POST(self):
             if not self.permitted():
                 return
-            if self.path not in ("/api/chat", "/api/command", "/api/wallet/solana-balance"):
+            if self.path not in ("/api/chat", "/api/command", "/api/wallet/solana-balance", "/api/coder/task", "/api/coder/approve", "/api/provider"):
                 self.reply(404, {"error": "Not found"})
                 return
             try:
@@ -99,9 +107,26 @@ def make_handler(engine=None, wallet=None, port=8787):
                 payload = json.loads(self.rfile.read(length))
                 if not isinstance(payload, dict):
                     raise ValueError("JSON object required")
-                if self.path == "/api/chat":
+                if self.path == "/api/provider":
+                    if set(payload) - {"provider", "model"} or "provider" not in payload:
+                        raise ValueError("Only provider and optional model are accepted")
+                    with provider_lock, coder.lock:
+                        # Pending approvals must never survive a provider swap.
+                        result = engine.configure(payload["provider"], payload.get("model"))
+                        coder.sessions.clear()
+                    self.reply(200, {"selected": result, "status": engine.status(),
+                                     "note": "Coding sessions reset; wallet state unchanged"})
+                elif self.path == "/api/chat":
                     reply = engine.chat(payload.get("message"), payload.get("history"))
                     self.reply(200, {"reply": reply, "tools_executed": 0})
+                elif self.path == "/api/coder/task":
+                    if set(payload) - {"message", "session_id"}:
+                        raise ValueError("Unsupported coding task fields")
+                    self.reply(200, coder.run(payload.get("message"), payload.get("session_id")))
+                elif self.path == "/api/coder/approve":
+                    if set(payload) != {"session_id", "token", "approved"}:
+                        raise ValueError("Approval requires session_id, token and boolean approved")
+                    self.reply(200, coder.decide(payload["session_id"], payload["token"], payload["approved"]))
                 elif self.path == "/api/wallet/solana-balance":
                     address = payload.get("address")
                     if not isinstance(address, str) or len(address) > 44 or set(payload) != {"address"}:
@@ -124,7 +149,7 @@ def main():
         raise ValueError("SATOSHI_PORT must be 1024–65535")
     server = ThreadingHTTPServer(("127.0.0.1", port), make_handler(port=port))
     print(f"SATOSHI AI localhost interface: http://127.0.0.1:{port}")
-    print("Chat uses Neo providers without autonomous tools. Multi-chain CLI is watch-only.")
+    print("7 providers; CODER has 15 scoped tools with explicit approvals. Wallets remain isolated.")
     try:
         server.serve_forever()
     except KeyboardInterrupt:
