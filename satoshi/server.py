@@ -10,7 +10,9 @@ from .engine import SatoshiEngine
 from .wallet import WatchWallet
 from .multichain import MultiChainWallet
 
-UI = Path(__file__).resolve().parent / "static" / "index.html"
+STATIC = Path(__file__).resolve().parent / "static"
+UI = STATIC / "index.html"
+WALLET_CONNECTORS_JS = STATIC / "wallet-connectors.js"
 MAX_JSON_BYTES = 36000
 
 
@@ -58,6 +60,16 @@ def make_handler(engine=None, wallet=None, port=8787):
                 self.send_header("Cache-Control", "no-store")
                 self.end_headers()
                 self.wfile.write(body)
+            elif self.path == "/wallet-connectors.js":
+                body = WALLET_CONNECTORS_JS.read_bytes()
+                self.send_response(200)
+                self.send_header("Content-Type", "text/javascript; charset=utf-8")
+                self.send_header("Content-Length", str(len(body)))
+                self.send_header("X-Content-Type-Options", "nosniff")
+                self.send_header("X-Frame-Options", "DENY")
+                self.send_header("Cache-Control", "no-store")
+                self.end_headers()
+                self.wfile.write(body)
             elif self.path == "/api/status":
                 self.reply(200, {"engine": engine.status(), "wallet": wallet.status()})
             elif self.path == "/api/wallet":
@@ -70,7 +82,7 @@ def make_handler(engine=None, wallet=None, port=8787):
         def do_POST(self):
             if not self.permitted():
                 return
-            if self.path not in ("/api/chat", "/api/command"):
+            if self.path not in ("/api/chat", "/api/command", "/api/wallet/solana-balance"):
                 self.reply(404, {"error": "Not found"})
                 return
             try:
@@ -90,6 +102,11 @@ def make_handler(engine=None, wallet=None, port=8787):
                 if self.path == "/api/chat":
                     reply = engine.chat(payload.get("message"), payload.get("history"))
                     self.reply(200, {"reply": reply, "tools_executed": 0})
+                elif self.path == "/api/wallet/solana-balance":
+                    address = payload.get("address")
+                    if not isinstance(address, str) or len(address) > 44 or set(payload) != {"address"}:
+                        raise ValueError("Only one public Solana address is accepted")
+                    self.reply(200, multi.inspect_public_solana(address))
                 else:
                     self.reply(200, run_command(payload.get("command"), wallet, engine, multi))
             except (ValueError, TypeError) as exc:

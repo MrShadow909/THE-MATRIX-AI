@@ -318,6 +318,31 @@ class MultiChainWallet:
         except Exception:
             return {**result, "reason": "Solana RPC unavailable or invalid response; balance unknown"}
 
+    def inspect_public_solana(self, address: str):
+        """Read a connected Phantom public address, without saving it.
+
+        The user-configured RPC must match Solana mainnet-beta. No wallet
+        credentials, user-supplied RPC URLs, signing or broadcasting accepted.
+        """
+        solana_address(address)
+        result = {"chain": "solana", "network": "mainnet-beta", "address": address,
+                  "symbol": "SOL", "balance": None, "balance_verified": False,
+                  "watch_only": True, "source": "local_operator_rpc"}
+        try:
+            url = _rpc_url("SATOSHI_SOLANA_RPC_URL")
+            if not url:
+                return {**result, "reason": "Configure SATOSHI_SOLANA_RPC_URL locally"}
+            if _rpc(url, "getGenesisHash", []) != SOLANA_MAINNET_GENESIS:
+                return {**result, "reason": "RPC is not Solana mainnet-beta"}
+            data = _rpc(url, "getBalance", [address, {"commitment": "confirmed"}])
+            lamports = data["value"]
+            if type(lamports) is not int or lamports < 0:
+                raise ValueError("Invalid lamports")
+            return {**result, "balance": str(Decimal(lamports) / Decimal(10**9)),
+                    "balance_verified": True, "commitment": "confirmed"}
+        except Exception:
+            return {**result, "reason": "Solana RPC unavailable or invalid response"}
+
     def balances(self):
         return {"balances": [self.balance(e["alias"]) for e in self.list()["wallets"]],
                 "note": "Balances are per-asset and cannot be summed without trusted pricing data"}

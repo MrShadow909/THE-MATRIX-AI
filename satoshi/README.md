@@ -1,4 +1,4 @@
-# SATOSHI AI — Multi-Chain Wallet CLI v0.2 (watch-only)
+# SATOSHI AI — Browser Wallet Connectors + Multi-Chain Wallet CLI v0.3
 
 A localhost SATOSHI AI chat + CLI demo built against THE-MATRIX-AI's **provider interface only**. The LLM has **zero** executable tools or wallet access. Wallet actions are handled independently by an explicit command allowlist.
 
@@ -19,6 +19,34 @@ A localhost SATOSHI AI chat + CLI demo built against THE-MATRIX-AI's **provider 
 
 Additionally, `wallet token` queries an **untrusted, user-specified** ERC-20 contract's `balanceOf` amount on a verified EVM chain. The operator must verify the token contract and decimal count independently. `wallet tokens` queries Solana SPL Token **and** Token-2022 accounts by owner. These features do **not** establish token authenticity, ownership of the private keys, market price, eligibility, or transferability.
 
+
+## Browser wallet connectors (v0.3)
+
+The SATOSHI dashboard now offers explicit **Connect / Refresh / Save to CLI / Disconnect** controls for:
+
+- **MetaMask (EVM)**: detects a MetaMask EIP-6963 or injected EIP-1193 provider and asks for account permission using `eth_requestAccounts` **only when Connect is clicked**. Displays the authorized public account, current `eth_chainId`, and native-chain balance from `eth_getBalance`. Supports Ethereum, Polygon, Base, Arbitrum, OP Mainnet and BNB Chain in the CLI watchlist. Unknown EVM networks remain visible as unsupported and cannot be saved to the watchlist.
+- **Phantom (Solana)**: detects `window.phantom.solana.isPhantom`, and uses `connect()` **only on click**. Displays the public key. A new localhost-only `POST /api/wallet/solana-balance` endpoint can read SOL balance using the **operator-configured** `SATOSHI_SOLANA_RPC_URL`, verifying Solana mainnet genesis before reporting any amount. Without this configuration the UI shows **balance unknown**, never a fictitious balance. This does **not** prove which network is selected inside Phantom.
+
+**Save to CLI** is a separate, deliberate action that writes only the selected **PUBLIC** address to SATOSHI's local watchlist with a user-chosen alias. No automatic persistence on connection. Watchlist entries are not cryptographic proof of ownership. MetaMask Disconnect clears SATOSHI's browser state; to revoke the dapp's provider permission, also disconnect SATOSHI under MetaMask's connected-site permissions. Phantom Disconnect calls the provider's `disconnect()`.
+
+The connectors **never call** `eth_sendTransaction`, `personal_sign`, `signTransaction`, `signAndSendTransaction`, `wallet_switchEthereumChain`, token approvals, swaps or trading methods. No wallet-generated secrets pass to the AI/chat. The AI agent retains zero wallet tools and zero autonomous execution capability.
+
+**Browser requirements:** open `http://127.0.0.1:8787` with a compatible extension on desktop, or in Phantom's in-app browser for mobile Solana use. Wallet providers generally **do not inject** into `file://` previews, non-secure remote HTTP pages or cross-origin iframes. This MVP uses direct browser injection; it does **not** yet include the MetaMask Connect SDK's QR/deep-link mobile connection flow. Before production, perform real extension and mobile-wallet QA, including switching accounts and chains, error handling, authentication/CSRF review, domain verification where applicable, a wallet-focused security audit and testing with small public testnet-only samples. Do not use real funds during initial testing.
+
+## Test the browser connector
+
+```bash
+python -m unittest discover -s tests -p 'test_*.py' -v
+node tests/test_wallet_connectors.cjs
+```
+
+Tests use mocked browser wallets / RPCs, **not** live installed MetaMask or Phantom. The direct-injection implementation is based on the official documentation:
+
+- https://docs.metamask.io/metamask-connect/evm/reference/json-rpc-api/eth_accounts/
+- https://docs.metamask.io/metamask-connect/evm/reference/json-rpc-api/eth_getBalance/
+- https://docs.phantom.com/solana/detecting-the-provider
+- https://docs.phantom.com/solana/establishing-a-connection
+
 ## Install
 
 Copy `satoshi/` into the root of the original `THE-MATRIX-AI` repository, alongside `providers/` and `config.py`. This release is an overlay, **not** a standalone replacement for the Neo provider modules.
@@ -29,7 +57,7 @@ ollama pull llama3.2
 python -m satoshi.server
 ```
 
-Browse to `http://127.0.0.1:8787`. The UI animates offline, but live AI chat requires a configured local Ollama or BYOK provider. The microphone is a local audio-level visualizer only; no speech-to-text.
+Browse to `http://127.0.0.1:8787`. The basic UI animates offline; the browser wallet connectors require localhost/HTTPS and an installed wallet extension. Live AI chat requires a configured local Ollama or BYOK provider. The microphone is a local audio-level visualizer only; no speech-to-text.
 
 ## CLI examples
 
